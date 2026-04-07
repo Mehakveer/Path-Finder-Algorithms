@@ -4,9 +4,11 @@
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
-import { MousePointer2, Eraser, Target, Flag, RotateCcw, Play, Pause, Square, Gauge, Settings2, ChevronRight, Info } from 'lucide-react';
-import { CellType, Point, COLORS, AlgorithmType, ALGO_COLORS } from './types';
-import { runAlgorithm, SearchResult } from './algorithms';
+import { MousePointer2, Eraser, Target, Flag, Play, Pause, Square } from 'lucide-react';
+import { CellType, Point, AlgorithmType, AlgorithmResult } from './types';
+import { runAlgorithm } from './algorithms';
+import { Sidebar } from './components/Sidebar';
+import { GridArea } from './components/GridArea';
 
 export default function App() {
   const [rows, setRows] = useState(20);
@@ -20,28 +22,37 @@ export default function App() {
   const [isMouseDown, setIsMouseDown] = useState(false);
   const [algorithm, setAlgorithm] = useState<AlgorithmType>('BFS');
   
-  // Animation State
-  const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
+  // Animation & Results
+  const [results, setResults] = useState<Partial<Record<AlgorithmType, AlgorithmResult>>>({});
   const [currentFrame, setCurrentFrame] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(20);
 
+  // Sync grid when rows/cols change
+  useEffect(() => {
+    setGrid(Array.from({ length: rows }, () => Array(cols).fill(CellType.EMPTY)));
+    setResults({});
+    setCurrentFrame(0);
+    setIsPlaying(false);
+  }, [rows, cols]);
+
   // Animation Loop
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (isPlaying && searchResult && currentFrame < searchResult.frames.length - 1) {
+    const res = results[algorithm];
+    if (isPlaying && res && currentFrame < res.frames.length - 1) {
       timer = setTimeout(() => {
         setCurrentFrame(prev => prev + 1);
       }, speed);
-    } else if (currentFrame >= (searchResult?.frames.length || 0) - 1) {
+    } else if (res && currentFrame >= res.frames.length - 1) {
       setIsPlaying(false);
     }
     return () => clearTimeout(timer);
-  }, [isPlaying, currentFrame, searchResult, speed]);
+  }, [isPlaying, currentFrame, results, algorithm, speed]);
 
   const handleCellInteraction = useCallback((r: number, c: number) => {
     if (isPlaying) return;
-    setSearchResult(null);
+    setResults({});
     setCurrentFrame(0);
     
     if (editMode === 'START') setStart({ r, c });
@@ -55,20 +66,27 @@ export default function App() {
     }
   }, [editMode, isPlaying]);
 
-  const resetGrid = () => {
+  const generateMaze = () => {
+    const newGrid = grid.map(row => row.map(() => Math.random() < 0.3 ? CellType.WALL : CellType.EMPTY));
+    setGrid(newGrid);
+    setResults({});
+    setCurrentFrame(0);
+  };
+
+  const resetAll = () => {
     setIsPlaying(false);
     setGrid(Array.from({ length: rows }, () => Array(cols).fill(CellType.EMPTY)));
-    setSearchResult(null);
+    setResults({});
     setCurrentFrame(0);
   };
 
   const startSearch = () => {
-    if (searchResult && currentFrame > 0) {
+    if (results[algorithm] && currentFrame > 0) {
       setIsPlaying(true);
       return;
     }
     const result = runAlgorithm(algorithm, grid, start, goal);
-    setSearchResult(result);
+    setResults(prev => ({ ...prev, [algorithm]: result }));
     setCurrentFrame(0);
     setIsPlaying(true);
   };
@@ -76,21 +94,17 @@ export default function App() {
   const stopSearch = () => {
     setIsPlaying(false);
     setCurrentFrame(0);
-    setSearchResult(null);
+    setResults({});
   };
 
-  const displayGrid = searchResult?.frames[currentFrame] || grid.map((row, r) => row.map((cell, c) => {
-    if (r === start.r && c === start.c) return CellType.START;
-    if (r === goal.r && c === goal.c) return CellType.GOAL;
-    return cell;
-  }));
+  const displayGrid = results[algorithm]?.frames[currentFrame] || grid;
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#e6edf3] flex flex-col" onMouseUp={() => setIsMouseDown(false)}>
+    <div className="h-screen bg-[#0d1117] text-[#e6edf3] flex flex-col overflow-hidden" onMouseUp={() => setIsMouseDown(false)}>
       {/* Header */}
-      <header className="h-16 border-b border-[#30363d] bg-[#161b22] px-6 flex items-center justify-between z-10">
+      <header className="h-16 border-b border-[#30363d] bg-[#161b22] px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold">Path Visualizer <span className="text-xs text-[#8b949e] ml-2">v4.0</span></h1>
+          <h1 className="text-xl font-bold tracking-tight">Path Visualizer <span className="text-xs text-[#8b949e] ml-2 font-mono">v5.0</span></h1>
           <div className="h-8 w-px bg-[#30363d] mx-2" />
           <div className="flex bg-[#0d1117] rounded-lg p-1 border border-[#30363d]">
             {[
@@ -112,97 +126,51 @@ export default function App() {
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3 bg-[#0d1117] px-4 py-1.5 rounded-lg border border-[#30363d]">
-            <Gauge size={16} className="text-[#8b949e]" />
-            <input type="range" min="1" max="100" value={101 - speed} onChange={(e) => setSpeed(101 - parseInt(e.target.value))} className="w-24 accent-[#1f6feb]" />
-          </div>
-
-          <button onClick={isPlaying ? () => setIsPlaying(false) : startSearch} className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold transition-all ${isPlaying ? 'bg-[#da3633]' : 'bg-[#238636] shadow-lg shadow-green-500/20'}`}>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={isPlaying ? () => setIsPlaying(false) : startSearch}
+            className={`flex items-center gap-2 px-6 py-2 rounded-lg font-bold transition-all ${
+              isPlaying ? 'bg-[#da3633]' : 'bg-[#238636] shadow-lg shadow-green-500/20'
+            }`}
+          >
             {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
-            {isPlaying ? 'Pause' : (searchResult ? 'Resume' : 'Visualize')}
+            {isPlaying ? 'Pause' : (results[algorithm] ? 'Resume' : 'Visualize')}
           </button>
-
-          <button onClick={stopSearch} disabled={!searchResult} className="p-2 bg-[#30363d] text-white rounded-lg hover:bg-[#484f58] disabled:opacity-30 transition-all">
+          <button onClick={stopSearch} disabled={!results[algorithm]} className="p-2 bg-[#30363d] rounded-lg disabled:opacity-30">
             <Square size={18} fill="currentColor" />
           </button>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-80 border-r border-[#30363d] bg-[#161b22] p-6 flex flex-col gap-8 overflow-y-auto">
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-[#8b949e]">
-              <Settings2 size={18} />
-              <h2 className="text-sm font-bold uppercase tracking-widest">Algorithm</h2>
-            </div>
-            <div className="grid grid-cols-1 gap-2">
-              {(['BFS', 'DFS', 'A*', 'GREEDY'] as AlgorithmType[]).map(algo => (
-                <button
-                  key={algo}
-                  onClick={() => { setAlgorithm(algo); setSearchResult(null); setCurrentFrame(0); }}
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-all ${algorithm === algo ? 'bg-[#1f6feb]/10 border-[#1f6feb] text-white' : 'bg-[#0d1117] border-[#30363d] text-[#8b949e] hover:border-[#484f58]'}`}
-                >
-                  <span className="font-bold">{algo}</span>
-                  <div className={`w-2 h-2 rounded-full ${ALGO_COLORS[algo].primary}`} />
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-[#8b949e]">
-              <Info size={18} />
-              <h2 className="text-sm font-bold uppercase tracking-widest">Description</h2>
-            </div>
-            <div className="p-4 bg-[#0d1117] border border-[#30363d] rounded-xl text-xs text-[#8b949e] leading-relaxed">
-              {algorithm === 'BFS' && "Breadth-First Search: Guarantees the shortest path. Explores layer by layer."}
-              {algorithm === 'DFS' && "Depth-First Search: Does not guarantee shortest path. Explores as deep as possible."}
-              {algorithm === 'A*' && "A* Search: Uses heuristics to find the shortest path efficiently."}
-              {algorithm === 'GREEDY' && "Greedy Best-First: Uses heuristics to find a path quickly, but not always the shortest."}
-            </div>
-          </section>
-
-          <div className="mt-auto">
-            <button onClick={resetGrid} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border border-[#30363d] text-[#8b949e] hover:bg-[#da3633] hover:text-white hover:border-[#da3633] transition-all">
-              <RotateCcw size={18} />
-              <span className="font-bold">Reset Grid</span>
-            </button>
-          </div>
-        </aside>
-
-        {/* Main Grid Area */}
-        <main className="flex-1 bg-[#0d1117] p-8 flex flex-col items-center justify-center overflow-auto">
-          <div 
-            className="grid gap-px bg-[#30363d] border border-[#30363d] rounded-sm overflow-hidden shadow-2xl"
-            style={{ gridTemplateColumns: `repeat(${cols}, 25px)` }}
-          >
-            {displayGrid.map((row, r) => (
-              row.map((cell, c) => (
-                <div
-                  key={`${r}-${c}`}
-                  onMouseDown={() => { setIsMouseDown(true); handleCellInteraction(r, c); }}
-                  onMouseEnter={() => isMouseDown && handleCellInteraction(r, c)}
-                  className={`w-[25px] h-[25px] transition-colors duration-75 cursor-crosshair ${COLORS[cell]}`}
-                />
-              ))
-            ))}
-          </div>
-        </main>
+        <Sidebar 
+          algorithm={algorithm} setAlgorithm={setAlgorithm}
+          speed={speed} setSpeed={setSpeed}
+          rows={rows} setRows={setRows}
+          cols={cols} setCols={setCols}
+          generateMaze={generateMaze}
+          resetAll={resetAll}
+          results={results}
+        />
+        <GridArea 
+          grid={displayGrid}
+          start={start}
+          goal={goal}
+          handleMouseDown={(r, c) => { setIsMouseDown(true); handleCellInteraction(r, c); }}
+          handleMouseEnter={(r, c) => isMouseDown && handleCellInteraction(r, c)}
+          cols={cols}
+        />
       </div>
 
-      {/* Footer */}
-      <footer className="h-12 bg-[#161b22] border-t border-[#30363d] flex justify-between items-center px-10">
-        <div className="flex items-center gap-2 text-[10px] text-[#8b949e] uppercase tracking-widest">
-          <div className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`} />
-          {isPlaying ? `Running ${algorithm}...` : 'System Ready'}
+      <footer className="h-10 bg-[#161b22] border-t border-[#30363d] flex justify-between items-center px-10 shrink-0">
+        <div className="text-[10px] text-[#8b949e] uppercase tracking-widest font-bold">
+          {isPlaying ? `Visualizing ${algorithm}...` : 'System Ready'}
         </div>
-        
-        {searchResult && (
+        {results[algorithm] && (
           <div className="flex gap-8 text-[10px] font-bold uppercase">
-            <span className="text-[#8b949e]">Progress: <span className="text-[#e6edf3]">{Math.round((currentFrame / (searchResult.frames.length - 1)) * 100)}%</span></span>
-            <span className="text-[#8b949e]">Path: <span className="text-[#00f2ff]">{searchResult.found ? `${searchResult.path.length} nodes` : 'N/A'}</span></span>
+            <span className="text-[#8b949e]">Nodes: <span className="text-[#e6edf3]">{results[algorithm]?.nodesExpanded}</span></span>
+            <span className="text-[#8b949e]">Length: <span className="text-[#00f2ff]">{results[algorithm]?.pathLength}</span></span>
+            <span className="text-[#8b949e]">Time: <span className="text-[#58a6ff]">{results[algorithm]?.execTimeMs?.toFixed(1) ?? '0.0'}ms</span></span>
           </div>
         )}
       </footer>
