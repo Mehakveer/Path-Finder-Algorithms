@@ -6,12 +6,21 @@
 import { CellType, Point } from './types';
 
 export type SearchResult = {
-  explored: Set<string>;
+  frames: CellType[][][];
   path: Point[];
   found: boolean;
 };
 
 const pointToKey = (p: Point) => `${p.r},${p.c}`;
+
+const createSnapshot = (grid: CellType[][], explored: Set<string>, current: Point | null): CellType[][] => {
+  return grid.map((row, r) => row.map((cell, c) => {
+    if (cell === CellType.START || cell === CellType.GOAL) return cell;
+    if (current && r === current.r && c === current.c) return CellType.EXPLORED; // Highlight current
+    if (explored.has(`${r},${c}`)) return CellType.EXPLORED;
+    return cell;
+  }));
+};
 
 export const bfs = (
   grid: CellType[][],
@@ -23,6 +32,7 @@ export const bfs = (
   const queue: Point[] = [start];
   const explored = new Set<string>();
   const cameFrom: Record<string, Point | null> = {};
+  const frames: CellType[][][] = [];
   
   explored.add(pointToKey(start));
   cameFrom[pointToKey(start)] = null;
@@ -37,11 +47,16 @@ export const bfs = (
       break;
     }
 
+    // Add a frame every few steps to keep animation smooth but not too slow
+    if (explored.size % 5 === 0) {
+      frames.push(createSnapshot(grid, explored, current));
+    }
+
     const neighbors = [
-      { r: current.r - 1, c: current.c }, // Up
-      { r: current.r + 1, c: current.c }, // Down
-      { r: current.r, c: current.c - 1 }, // Left
-      { r: current.r, c: current.c + 1 }, // Right
+      { r: current.r - 1, c: current.c },
+      { r: current.r + 1, c: current.c },
+      { r: current.r, c: current.c - 1 },
+      { r: current.r, c: current.c + 1 },
     ];
 
     for (const next of neighbors) {
@@ -68,7 +83,18 @@ export const bfs = (
       curr = cameFrom[pointToKey(curr)] || null;
     }
     path.reverse();
+
+    // Add path animation frames
+    const lastExplorationFrame = createSnapshot(grid, explored, null);
+    for (let i = 0; i < path.length; i++) {
+      const pathSnapshot = lastExplorationFrame.map((row, r) => row.map((cell, c) => {
+        const isPathNode = path.slice(0, i + 1).some(p => p.r === r && p.c === c);
+        if (isPathNode && cell !== CellType.START && cell !== CellType.GOAL) return CellType.PATH;
+        return cell;
+      }));
+      frames.push(pathSnapshot);
+    }
   }
 
-  return { explored, path, found };
+  return { frames, path, found };
 };
