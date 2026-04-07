@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .animate-cell-pop {
+    animation: cellPop 0.3s ease-out forwards;
+  }
+  
+  .animate-path-flow {
+    animation: pathFlow 0.5s ease-in-out forwards;
+  }
+}
+
+@keyframes cellPop {
+  0% {
+    transform: scale(0.3);
+    border-radius: 100%;
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    border-radius: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes pathFlow {
+  0% {
+    transform: scale(0.5);
+    filter: brightness(2);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #8b949e;
+}
