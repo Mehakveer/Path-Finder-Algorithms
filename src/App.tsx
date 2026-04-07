@@ -4,8 +4,9 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { MousePointer2, Eraser, Target, Flag, RotateCcw } from 'lucide-react';
+import { MousePointer2, Eraser, Target, Flag, RotateCcw, Play } from 'lucide-react';
 import { CellType, Point, COLORS } from './types';
+import { bfs, SearchResult } from './algorithms';
 
 const ROWS = 20;
 const COLS = 30;
@@ -18,9 +19,11 @@ export default function App() {
   const [goal, setGoal] = useState<Point>({ r: 15, c: 25 });
   const [editMode, setEditMode] = useState<'WALL' | 'ERASE' | 'START' | 'GOAL'>('WALL');
   const [isMouseDown, setIsMouseDown] = useState(false);
+  const [searchResult, setSearchResult] = useState<SearchResult | null>(null);
 
   // Helper to update grid based on current edit mode
   const handleCellInteraction = useCallback((r: number, c: number) => {
+    setSearchResult(null); // Clear search results when editing
     if (editMode === 'START') {
       setStart({ r, c });
     } else if (editMode === 'GOAL') {
@@ -38,13 +41,34 @@ export default function App() {
     setGrid(Array.from({ length: ROWS }, () => Array(COLS).fill(CellType.EMPTY)));
     setStart({ r: 5, c: 5 });
     setGoal({ r: 15, c: 25 });
+    setSearchResult(null);
+  };
+
+  const startSearch = () => {
+    const result = bfs(grid, start, goal);
+    setSearchResult(result);
+  };
+
+  const getCellType = (r: number, c: number) => {
+    if (r === start.r && c === start.c) return CellType.START;
+    if (r === goal.r && c === goal.c) return CellType.GOAL;
+    
+    if (searchResult) {
+      const isPath = searchResult.path.some(p => p.r === r && p.c === c);
+      if (isPath) return CellType.PATH;
+      
+      const isExplored = searchResult.explored.has(`${r},${c}`);
+      if (isExplored) return CellType.EXPLORED;
+    }
+    
+    return grid[r][c];
   };
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-[#e6edf3] flex flex-col" onMouseUp={() => setIsMouseDown(false)}>
       {/* Header */}
       <header className="h-16 border-b border-[#30363d] bg-[#161b22] px-6 flex items-center justify-between">
-        <h1 className="text-xl font-bold">Path Visualizer <span className="text-xs text-[#8b949e] ml-2">v1.0</span></h1>
+        <h1 className="text-xl font-bold">Path Visualizer <span className="text-xs text-[#8b949e] ml-2">v2.0</span></h1>
         
         <div className="flex items-center gap-4">
           <div className="flex bg-[#0d1117] rounded-lg p-1 border border-[#30363d]">
@@ -64,6 +88,15 @@ export default function App() {
               </button>
             ))}
           </div>
+          
+          <button 
+            onClick={startSearch}
+            className="flex items-center gap-2 px-4 py-2 bg-[#238636] hover:bg-[#2ea043] text-white rounded-lg font-bold transition-all"
+          >
+            <Play size={18} fill="currentColor" />
+            Start Search
+          </button>
+
           <button onClick={resetGrid} className="p-2 text-[#8b949e] hover:text-[#da3633] transition-colors">
             <RotateCcw size={20} />
           </button>
@@ -78,10 +111,7 @@ export default function App() {
         >
           {grid.map((row, r) => (
             row.map((cell, c) => {
-              // Determine what to show in this cell
-              let displayCell = cell;
-              if (r === start.r && c === start.c) displayCell = CellType.START;
-              else if (r === goal.r && c === goal.c) displayCell = CellType.GOAL;
+              const displayCell = getCellType(r, c);
 
               return (
                 <div
@@ -98,7 +128,9 @@ export default function App() {
 
       {/* Footer Info */}
       <footer className="p-4 text-center text-[10px] text-[#8b949e] uppercase tracking-widest border-t border-[#30363d]">
-        Click and drag to draw walls • Move start and goal points
+        {searchResult 
+          ? `Search Complete: ${searchResult.found ? `Path Found (${searchResult.path.length} nodes)` : 'No Path Found'}`
+          : 'Draw walls and press Start Search to find the path'}
       </footer>
     </div>
   );
