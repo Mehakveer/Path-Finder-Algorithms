@@ -39,6 +39,44 @@ npm run build
 npm run preview
 ```
 
+## Deploy to GitHub Pages
+
+This project can be deployed to GitHub Pages using the `gh-pages` package.
+
+1. Install the dev dependency:
+
+```bash
+npm install --save-dev gh-pages
+```
+
+2. Ensure `package.json` contains these scripts (already added):
+
+```json
+"predeploy": "npm run build",
+"deploy": "gh-pages -d dist"
+```
+
+3. If you will host as a *project site* (https://<user>.github.io/<repo>/), set the `base` option in `vite.config.ts` to `'/REPO_NAME/'` (replace `REPO_NAME` with your GitHub repo name). Example:
+
+```ts
+export default defineConfig({
+  base: '/Path-Finder-Algorithms/',
+  // ...rest of config
+})
+```
+
+4. Build and deploy:
+
+```bash
+npm run deploy
+```
+
+This will publish the `dist` folder to the `gh-pages` branch and make your site available at `https://<user>.github.io/<repo>/`.
+
+Notes:
+- If you prefer automation, use the `peaceiris/actions-gh-pages` GitHub Action to publish on push to `main`.
+- If your project is a user/org site (published at `https://<user>.github.io/`), do NOT set the `base` option and deploy from the repository root.
+
 ## Project structure (important files)
 - `index.html` — app entry
 - `package.json`, `tsconfig.json`, `vite.config.ts` — tooling
