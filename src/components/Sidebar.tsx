@@ -146,7 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex items-center gap-3">
                   <div>
                     <p className="text-[8px] font-bold text-[#8b949e] uppercase text-right">Time</p>
-                    <p className="text-[10px] font-mono text-[#58a6ff]">{(res && typeof res.execTimeMs === 'number' && Number.isFinite(res.execTimeMs)) ? `${res.execTimeMs.toFixed(1)}ms` : '—'}</p>
+                    <p className="text-[10px] font-mono text-[#58a6ff]">{res ? `${res.execTimeMs.toFixed(1)}ms` : '—'}</p>
                   </div>
                   <ChevronRight size={12} className="text-[#30363d] group-hover:text-[#8b949e] transition-colors" />
                 </div>
