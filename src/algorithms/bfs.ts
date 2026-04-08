@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { CellType, Point, AlgorithmResult } from '../types';
 import { getNeighbors, pointToKey, createSnapshot } from './utils';
 
@@ -19,23 +14,22 @@ export const bfs = (
   const explored = new Set<string>();
   const frontierSet = new Set<string>();
   const cameFrom: Record<string, Point | null> = {};
-  
-  const queue: Point[] = [start];
-  frontierSet.add(pointToKey(start));
   cameFrom[pointToKey(start)] = null;
 
   let nodesExpanded = 0;
   let found = false;
 
+  const queue: Point[] = [start];
+  frontierSet.add(pointToKey(start));
+
   while (queue.length > 0) {
     const current = queue.shift()!;
     const key = pointToKey(current);
-    
     frontierSet.delete(key);
     explored.add(key);
     nodesExpanded++;
 
-    if (nodesExpanded % 10 === 0 || (current.r === goal.r && current.c === goal.c)) {
+    if (nodesExpanded % 5 === 0 || (current.r === goal.r && current.c === goal.c)) {
       frames.push(createSnapshot(grid, current, frontierSet, explored));
     }
 
@@ -46,10 +40,10 @@ export const bfs = (
 
     for (const next of getNeighbors(current, rows, cols, grid)) {
       const nextKey = pointToKey(next);
-      if (!explored.has(nextKey) && !frontierSet.has(nextKey)) {
-        frontierSet.add(nextKey);
+      if (!cameFrom.hasOwnProperty(nextKey)) {
         cameFrom[nextKey] = current;
         queue.push(next);
+        frontierSet.add(nextKey);
       }
     }
   }

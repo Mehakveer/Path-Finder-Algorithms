@@ -1,9 +1,4 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { AlgorithmType, CellType, Point, AlgorithmResult } from '../types';
+import { CellType, Point, AlgorithmResult, AlgorithmType } from '../types';
 import { bfs } from './bfs';
 import { dfs } from './dfs';
 import { astar } from './astar';

@@ -1,0 +1,5 @@
+{
+  "name": "Intelligent Path-Finding Visualizer",
+  "description": "An interactive tool to visualize and compare search algorithms like BFS, DFS, A*, and Greedy Search on a grid-based environment.",
+  "requestFramePermissions": []
+}
